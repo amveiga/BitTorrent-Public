@@ -1,0 +1,8 @@
+@startuml
+
+Tracker --> Handler
+
+Handler "1" --> "*" LeecherThread
+Handler "1" --> "*" SeederThread
+
+@enduml

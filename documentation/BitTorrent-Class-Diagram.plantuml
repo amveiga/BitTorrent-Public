@@ -1,0 +1,32 @@
+@startuml
+Program "1" --> "*" Process
+Process "1" --> "*" Role
+
+Class Leecher implements Role
+Class Seeder implements Role
+
+Class Role {
+  handler: Handler
+}
+
+Class Server implements Handler
+Class Client implements Handler
+
+Class Client<BitTorrent> {
+  socket: Socket
+}
+
+Class Server<BitTorrent> {
+  socket: Socket
+}
+
+Process --> Socket
+
+Process -> Asset
+
+Asset "1"--> "*" File
+Asset --> AssetState
+
+
+Role "1" -> "..2" Handler
+@enduml

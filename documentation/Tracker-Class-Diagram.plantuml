@@ -1,0 +1,45 @@
+@startuml
+
+Tracker --> Ledger
+
+Ledger "1" --> "*" Asset
+
+Class Server<HTTPTracker> {
+  + handle_incoming(): Job
+}
+
+Tracker --> Server
+
+Class Asset {
+  size: usize
+  total_chunks: usize
+  + to_torrent(): Torrent
+}
+
+Ledger -> Bencoder
+
+Class Ledger {
+  + encode()
+  + add_peer()
+  + remove_peer()
+}
+
+Class Bencoder {
+  + encode()
+  + decode()
+}
+
+Asset "1" --> "*" Peer
+
+Class Leecher implements Peer
+Class Seeder implements Peer
+
+Class Peer {
+  chunks: usize[]
+  address: String
+  socket: TcpStream
+
+  + to_hash_map()
+}
+
+@enduml

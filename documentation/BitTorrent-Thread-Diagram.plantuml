@@ -1,0 +1,15 @@
+@startuml
+
+BitTorrent "1" --> "*" Process
+BitTorrent --> TrackerHandler
+
+TrackerHandler -> MainThread 
+
+Process --> Role
+
+Role "1" --> "1..2" Handler
+
+Handler -> MainThread
+Handler "1" --> "*" JobThread
+
+@enduml
