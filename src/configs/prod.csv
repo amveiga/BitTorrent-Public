@@ -1,0 +1,6 @@
+PROD,321
+IP,127.0.0.1
+TCP_PORT,7878
+LOG_PATH,/logs
+DOWNLOAD_PATH,/downloads
+TEMP_PATH,/temp
