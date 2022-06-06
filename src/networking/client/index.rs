@@ -33,7 +33,12 @@ impl<P: Protocol + Send + Sync + 'static> Client<P> {
         }
     }
 
-    pub fn send<M: AsRef<[u8]>>(&mut self, to: &str, message: M) -> Result<Vec<u8>, String> {
+    // estas dos funciones cumplen mas de una cosa a la vez, podríamos separarlas en 3: send, read, get_stream
+    pub fn send_and_read<M: AsRef<[u8]>>(
+        &mut self,
+        to: &str,
+        message: M,
+    ) -> Result<Vec<u8>, String> {
         let stream = self
             .established_connections
             .get_mut(to)
@@ -51,7 +56,7 @@ impl<P: Protocol + Send + Sync + 'static> Client<P> {
         }
     }
 
-    pub fn send_stream<M: AsRef<[u8]>>(&mut self, to: &str, message: M) -> &mut P::Stream {
+    pub fn send_and_get_stream<M: AsRef<[u8]>>(&mut self, to: &str, message: M) -> &mut P::Stream {
         let stream = self
             .established_connections
             .get_mut(to)

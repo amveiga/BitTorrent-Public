@@ -22,7 +22,8 @@ fn as_u32_usize(array: &[u8; 4]) -> usize {
 }
 
 impl BitTorrent {
-    pub fn handshake(info_hash: &[u8], peer_id: &[u8]) -> Vec<u8> {
+    // podríamos implementarlo como atributo del trait protocol (lo usan los dos protocolos que tenemos)
+    pub fn handshake_message_format(info_hash: &[u8], peer_id: &[u8]) -> Vec<u8> {
         let mut handshake: Vec<u8> = Vec::new();
 
         let handshake_protocol = b"BitTorrent protocol".to_vec();

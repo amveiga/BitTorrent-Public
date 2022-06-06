@@ -25,6 +25,7 @@ impl Message {
             Ok(_) => {
                 if response.len() == handshake_len
                     && response[handshake_len - 40..handshake_len - 20].starts_with(info_hash)
+                // falta checkear que es el expected peer_id
                 {
                     return Ok(true);
                 }
@@ -80,7 +81,7 @@ impl Message {
         }
     }
 
-    pub fn new(data: Vec<u8>) -> Self {
+    fn new(data: Vec<u8>) -> Self {
         let length = u32::from_be_bytes(data[0..4].try_into().expect("Incorrect message length"));
 
         match length {
@@ -112,7 +113,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_interested_parse() {
+    fn test1_interested_parse() {
         let interesetd = Message::Interested
             .parse()
             .expect("test_interested_parse - Failed to parse interested");

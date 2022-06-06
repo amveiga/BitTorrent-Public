@@ -19,7 +19,7 @@ impl File {
             .open(pathname)
     }
 
-    pub fn open<T: AsRef<Path>>(pathname: T) -> Self {
+    pub fn new<T: AsRef<Path>>(pathname: T) -> Self {
         let handler = File::open_file(&pathname).expect("Error opening file");
 
         Self {
@@ -108,7 +108,7 @@ mod tests {
 
     #[test]
     fn creates_file_correctly() {
-        File::open("empty1.txt");
+        File::new("empty1.txt");
 
         let mut test_file = Handler::open("empty1.txt").expect("Error opening file");
         let mut contents = String::new();
@@ -139,7 +139,7 @@ mod tests {
     #[test]
     fn recreates_file_from_chunks_correctly() {
         let mut own_test_file = File::with_contents("test.txt", b"Hey!");
-        let mut result_file = File::open("test_cpy.txt");
+        let mut result_file = File::new("test_cpy.txt");
 
         for chunk_number in 0..own_test_file.get_contents().chars().count() {
             let chunk = own_test_file.get_chunk(1, chunk_number);

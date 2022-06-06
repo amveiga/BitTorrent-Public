@@ -36,7 +36,7 @@ impl HTTPTracker {
         }
     }
 
-    pub fn send_handshake(
+    pub fn handshake_message_format(
         address: &str,
         id: String,
         info_hash: String,

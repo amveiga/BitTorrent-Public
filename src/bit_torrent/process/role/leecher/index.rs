@@ -73,7 +73,7 @@ impl Role for Leecher {
         let info_hash = self.torrent.get_info_hash();
         let length = self.torrent.get_length().expect("No length available");
 
-        let request = HTTPTracker::send_handshake(
+        let request = HTTPTracker::handshake_message_format(
             &self.tracker_address,
             UrlEncoder::encode_binary_data(self.peer_id.clone()),
             UrlEncoder::encode_binary_data(info_hash.to_vec()),
@@ -87,7 +87,7 @@ impl Role for Leecher {
 
         let response = self
             .tracker_side
-            .send(&self.tracker_address, request)
+            .send_and_read(&self.tracker_address, request)
             .unwrap();
 
         let slice = split_u8(response, b"\r\n\r\n");
@@ -111,7 +111,7 @@ impl Role for Leecher {
         // Voy a probar conectando a un solo peer
         // Sistema de retries para los peers
 
-        let handshake = BTProtocol::handshake(&info_hash, &self.peer_id);
+        let handshake = BTProtocol::handshake_message_format(&info_hash, &self.peer_id);
 
         let mut peer_in_use_index = 0;
 
@@ -140,7 +140,9 @@ impl Role for Leecher {
 
         println!("Waiting handshake");
 
-        let message_stream = self.client_side.send_stream(&peer_address, &handshake);
+        let message_stream = self
+            .client_side
+            .send_and_get_stream(&peer_address, &handshake);
 
         match Message::validate_stream_handshake(message_stream, handshake.len(), &info_hash) {
             Ok(true) => {
@@ -153,7 +155,7 @@ impl Role for Leecher {
 
                     peer_in_use.has = payload;
 
-                    let message_stream = self.client_side.send_stream(
+                    let message_stream = self.client_side.send_and_get_stream(
                         &peer_address,
                         Message::Interested
                             .parse()
@@ -207,7 +209,7 @@ impl Role for Leecher {
                                     request_payload.extend_from_slice(&BLOCK_LENGTH_B);
                                 }
 
-                                let message_stream = self.client_side.send_stream(
+                                let message_stream = self.client_side.send_and_get_stream(
                                     &peer_address,
                                     Message::Request {
                                         payload: request_payload,
