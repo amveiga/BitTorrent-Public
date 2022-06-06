@@ -28,6 +28,15 @@ impl Decoder {
         }
     }
 
+    pub fn new_from_bytes(to_decode: &[u8]) -> Self {
+        let len = to_decode.len();
+        Self {
+            to_decode: to_decode.to_owned(),
+            len,
+            pos: 0,
+        }
+    }
+
     pub fn new_from_file(mut file: File) -> Result<Self, io::Error> {
         let len = file.metadata()?.len() as usize;
         let mut buffer = Vec::new();
@@ -202,19 +211,4 @@ mod tests {
         let mut bencoder = Decoder::new_from_string(bencoded_message);
         assert!(bencoder.decode().is_err());
     }
-
-    /*
-        #[test]
-        fn test6_decode_from_torrent_file() {
-            let filename = File::open("kubuntu-16.04.6-desktop-amd64.iso.torrent")
-                .expect("Error in test-6:Could not open file");
-            let mut bencoder = Bencoder::new_from_file(filename)
-                .expect("Error in test-6:Could not create bencoder from file");
-            let _torrent_bencoded = bencoder
-                .decode()
-                .expect("Error in test-6:Could not decode file");
-
-            println!("{:?}", _torrent_bencoded);
-        }
-    */
 }

@@ -26,7 +26,7 @@ impl Encoder {
         }
     }
 
-    fn encode_integer(&self, int: i32) -> Result<Vec<u8>, Box<dyn error::Error>> {
+    fn encode_integer(&self, int: i64) -> Result<Vec<u8>, Box<dyn error::Error>> {
         Ok(format!("i{}e", int).as_bytes().to_vec())
     }
 
@@ -69,11 +69,6 @@ mod tests {
         let encoded_message = bencoder
             .encode()
             .expect("Error in test-1: Unable to encode the integer.");
-        println!(
-            "{}",
-            from_utf8(&encoded_message)
-                .expect("Error in test-1: Unable to convert a slice of bytes to string slice.")
-        );
         assert_eq!(encoded_message, b"i10e");
     }
 
@@ -83,11 +78,7 @@ mod tests {
         let encoded_message = bencoder
             .encode()
             .expect("Error in test-2: Unable to encode the string.");
-        println!(
-            "{}",
-            from_utf8(&encoded_message)
-                .expect("Error in test-2: Unable to convert a slice of bytes to string slice.")
-        );
+
         assert_eq!(encoded_message, b"4:Hola");
     }
 
@@ -98,15 +89,9 @@ mod tests {
             Types::String(b"Chau".to_vec()),
         ]);
         let bencoder = Encoder::new(Types::List(list));
-        let encoded_message = bencoder
+        bencoder
             .encode()
             .expect("Error in test-3: Unable to encode the list.");
-
-        println!(
-            "{}",
-            from_utf8(&encoded_message)
-                .expect("Error in test-3: Unable to convert a slice of bytes to string slice.")
-        );
     }
     #[test]
     fn test4_encode_dictionary_correctly() {
@@ -122,13 +107,8 @@ mod tests {
         );
 
         let bencoder = Encoder::new(Types::Dictionary(dict));
-        let encoded_message = bencoder
+        bencoder
             .encode()
             .expect("Error in test-4: Unable to encode the dictionary.");
-        println!(
-            "{}",
-            from_utf8(&encoded_message)
-                .expect("Error in test-4: Unable to convert a slice of bytes to string slice.")
-        );
     }
 }

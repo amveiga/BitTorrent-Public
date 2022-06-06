@@ -9,14 +9,14 @@ pub const END: u8 = b'e';
 
 #[derive(Debug)]
 pub enum Types {
-    Integer(i32),
+    Integer(i64),
     String(Vec<u8>),
     Dictionary(HashMap<Vec<u8>, Types>),
     List(LinkedList<Types>),
 }
 
 impl Types {
-    pub fn get_integrer(&self) -> i32 {
+    pub fn get_integrer(&self) -> i64 {
         match &self {
             Types::Integer(int) => *int,
             _ => unreachable!(),

@@ -20,36 +20,46 @@ impl File {
     }
 
     pub fn open<T: AsRef<Path>>(pathname: T) -> Self {
-        let handler = File::open_file(&pathname).unwrap();
+        let handler = File::open_file(&pathname).expect("Error opening file");
 
         Self {
             handler,
-            pathname: pathname.as_ref().to_str().unwrap().to_owned(),
+            pathname: pathname
+                .as_ref()
+                .to_str()
+                .expect("Error converting to str")
+                .to_owned(),
         }
     }
 
     pub fn with_contents<T: AsRef<Path>, B: AsRef<[u8]>>(pathname: T, contents: B) -> Self {
-        let mut handler = File::open_file(&pathname).unwrap();
-        handler.write_all(contents.as_ref()).unwrap();
+        let mut handler = File::open_file(&pathname).expect("Error opening file");
+        handler.write_all(contents.as_ref()).expect("Writing error");
 
         Self {
             handler,
-            pathname: pathname.as_ref().to_str().unwrap().to_owned(),
+            pathname: pathname
+                .as_ref()
+                .to_str()
+                .expect("Error converting to str")
+                .to_owned(),
         }
     }
 
     pub fn get_contents(&mut self) -> String {
-        let mut handler = File::open_file(&self.pathname).unwrap();
+        let mut handler = File::open_file(&self.pathname).expect("Error opening file");
 
         let mut contents = String::new();
 
-        handler.read_to_string(&mut contents).unwrap();
+        handler
+            .read_to_string(&mut contents)
+            .expect("Failed reading from handler");
 
         contents
     }
 
     pub fn get_chunk(&mut self, chunk_size: usize, chunk_number: usize) -> Chunk {
-        let handler = File::open_file(&self.pathname).unwrap();
+        let handler = File::open_file(&self.pathname).expect("Error opening file");
 
         let file_as_bytes = (handler).bytes();
 
@@ -59,14 +69,9 @@ impl File {
         let last_byte = first_byte + chunk_size;
 
         for (byte_number, byte) in file_as_bytes.enumerate() {
-            match byte {
-                Ok(byte_value) => {
-                    if byte_number >= first_byte && byte_number < last_byte {
-                        bytes.push(byte_value)
-                    }
-                }
-                Err(e) => {
-                    println!("{}", e)
+            if let Ok(byte_value) = byte {
+                if byte_number >= first_byte && byte_number < last_byte {
+                    bytes.push(byte_value)
                 }
             }
         }
@@ -74,14 +79,18 @@ impl File {
         Chunk::from(bytes)
     }
 
-    pub fn new_file_from_chunk<T: AsRef<Path>>(chunk: Chunk, pathname: T) -> Result<Self, Error> {
+    pub fn new_file_from_piece<T: AsRef<Path>>(piece: &[u8], pathname: T) -> Result<Self, Error> {
         let mut handler = File::open_file(&pathname)?;
 
-        handler.write_all(chunk.get_content())?;
+        handler.write_all(piece)?;
 
         Ok(Self {
             handler,
-            pathname: pathname.as_ref().to_str().unwrap().to_owned(),
+            pathname: pathname
+                .as_ref()
+                .to_str()
+                .expect("Error converting to str")
+                .to_owned(),
         })
     }
 
@@ -101,7 +110,7 @@ mod tests {
     fn creates_file_correctly() {
         File::open("empty1.txt");
 
-        let mut test_file = Handler::open("empty1.txt").unwrap();
+        let mut test_file = Handler::open("empty1.txt").expect("Error opening file");
         let mut contents = String::new();
 
         test_file
@@ -109,7 +118,6 @@ mod tests {
             .expect("Failed to read file - Test: creates_file_correctly");
 
         remove_file("empty1.txt").expect("Failed to delete file - Test: creates_file_correctly");
-        println!("acacaca {}", contents);
 
         assert_eq!(contents, "");
     }
@@ -136,14 +144,10 @@ mod tests {
         for chunk_number in 0..own_test_file.get_contents().chars().count() {
             let chunk = own_test_file.get_chunk(1, chunk_number);
 
-            result_file.concat_chunk(chunk).unwrap();
+            result_file
+                .concat_chunk(chunk)
+                .expect("Error in concating chunk");
         }
-
-        println!(
-            "1:{}---------2:{}",
-            own_test_file.get_contents(),
-            result_file.get_contents()
-        );
 
         assert_eq!(own_test_file.get_contents(), result_file.get_contents());
         remove_file("test_cpy.txt")

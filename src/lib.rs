@@ -1,6 +1,9 @@
 pub mod bencoder;
-pub mod client;
+pub mod bit_torrent;
 pub mod constants;
 pub mod csv_env;
 pub mod file_system;
-pub mod server;
+pub mod networking;
+pub mod torrent_file;
+pub mod urlencoder;
+pub mod utils;
