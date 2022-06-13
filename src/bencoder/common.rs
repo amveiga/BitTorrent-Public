@@ -16,31 +16,31 @@ pub enum Types {
 }
 
 impl Types {
-    pub fn get_integrer(&self) -> i64 {
+    pub fn get_integrer(&self) -> Option<i64> {
         match &self {
-            Types::Integer(int) => *int,
-            _ => unreachable!(),
+            Types::Integer(int) => Some(*int),
+            _ => None,
         }
     }
 
-    pub fn get_string(&self) -> Vec<u8> {
+    pub fn get_string(&self) -> Option<Vec<u8>> {
         match &self {
-            Types::String(str) => str.clone(),
-            _ => unreachable!(),
+            Types::String(str) => Some(str.clone()),
+            _ => None,
         }
     }
 
-    pub fn get_dictionary(&self) -> &HashMap<Vec<u8>, Types> {
+    pub fn get_dictionary(&self) -> Option<&HashMap<Vec<u8>, Types>> {
         match &self {
-            Types::Dictionary(dict) => dict,
-            _ => unreachable!(),
+            Types::Dictionary(dict) => Some(dict),
+            _ => None,
         }
     }
 
-    pub fn get_list(&self) -> &LinkedList<Types> {
+    pub fn get_list(&self) -> Option<&LinkedList<Types>> {
         match &self {
-            Types::List(list) => list,
-            _ => unreachable!(),
+            Types::List(list) => Some(list),
+            _ => None,
         }
     }
 }

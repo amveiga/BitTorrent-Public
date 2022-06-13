@@ -149,7 +149,12 @@ mod tests {
         let parsed_message = bencoder
             .decode()
             .expect("Error in test-1: Unable to parse the integer.");
-        assert_eq!(parsed_message.get_integrer(), 2510);
+        assert_eq!(
+            parsed_message
+                .get_integrer()
+                .expect("Error in test-1: Unable to get integrer from decoded message"),
+            2510
+        );
     }
 
     #[test]
@@ -159,24 +164,39 @@ mod tests {
         let parsed_message = bencoder
             .decode()
             .expect("Error in test-2: Unable to parse the string.");
-        assert_eq!(parsed_message.get_string(), b"Hola");
+        assert_eq!(
+            parsed_message
+                .get_string()
+                .expect("Error in test-2: Unable to get string from decoded message"),
+            b"Hola"
+        );
     }
 
     #[test]
     fn test3_decode_list_correctly() {
         let bencoded_message = "l4:spam4:eggse".to_string();
         let mut bencoder = Decoder::new_from_string(bencoded_message);
-        let decode_list = bencoder
+        let decoded_message = bencoder
             .decode()
             .expect("Error in test-3: Unable to parse the list.");
+
+        let decode_list = decoded_message
+            .get_list()
+            .expect("Error in test-3: Unable to get list from decoded message");
         let mut expected_list = LinkedList::new();
         expected_list.push_back(b"spam".to_vec());
         expected_list.push_back(b"eggs".to_vec());
         let mut expected_list_iter = expected_list.iter();
-        let decode_list_iter = decode_list.get_list().iter();
-        assert_eq!(decode_list.get_list().len(), expected_list.len());
+        let decode_list_iter = decode_list.iter();
+        assert_eq!(decode_list.len(), expected_list.len());
         for m in decode_list_iter {
-            assert_eq!(Some(&m.get_string()), expected_list_iter.next());
+            assert_eq!(
+                &m.get_string()
+                    .expect("Error test-3: Unable to get string from list "),
+                expected_list_iter
+                    .next()
+                    .expect("Error test-3: Unable to iterate")
+            );
         }
     }
 
@@ -199,7 +219,13 @@ mod tests {
         };
         assert_eq!(expected_dict.len(), returned_dict.len());
         for (key, val) in returned_dict.iter() {
-            assert_eq!(Some(&val.get_string()), expected_dict.get(key))
+            assert_eq!(
+                &val.get_string()
+                    .expect("test-5: Unable to get string from dict"),
+                expected_dict
+                    .get(key)
+                    .expect("test-5: Unable to get value from expected dictionary")
+            )
         }
     }
 

@@ -37,32 +37,32 @@ impl Torrent {
     }
 
     pub fn get_announce(&self) -> Option<Vec<u8>> {
-        Some(self.torrent_dict.get(&b"announce".to_vec())?.get_string())
+        self.torrent_dict.get(&b"announce".to_vec())?.get_string()
     }
 
     pub fn get_files(&self) -> Option<&HashMap<Vec<u8>, Types>> {
-        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary();
-        Some(info.get(&b"files".to_vec())?.get_dictionary())
+        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary()?;
+        info.get(&b"files".to_vec())?.get_dictionary()
     }
 
     pub fn get_length(&self) -> Option<i64> {
-        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary();
-        Some(info.get(&b"length".to_vec())?.get_integrer())
+        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary()?;
+        info.get(&b"length".to_vec())?.get_integrer()
     }
 
     pub fn get_name(&self) -> Option<Vec<u8>> {
-        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary();
-        Some(info.get(&b"name".to_vec())?.get_string())
+        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary()?;
+        info.get(&b"name".to_vec())?.get_string()
     }
 
     pub fn get_piece_length(&self) -> Option<i64> {
-        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary();
-        Some(info.get(&b"piece length".to_vec())?.get_integrer())
+        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary()?;
+        info.get(&b"piece length".to_vec())?.get_integrer()
     }
 
     pub fn get_pieces(&self) -> Option<Vec<Vec<u8>>> {
-        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary();
-        let hashes = info.get(&b"pieces".to_vec())?.get_string();
+        let info = self.torrent_dict.get(&b"info".to_vec())?.get_dictionary()?;
+        let hashes = info.get(&b"pieces".to_vec())?.get_string()?;
         let num_pieces: usize = hashes.len() / 20;
         let mut split_hashes: Vec<Vec<u8>> = vec![vec![0; 0]; num_pieces];
         for i in 0..num_pieces {
