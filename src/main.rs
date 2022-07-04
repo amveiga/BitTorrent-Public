@@ -1,5 +1,7 @@
+use log::LevelFilter;
 use sitos::bit_torrent::BitTorrent;
 use sitos::csv_env::set_env;
+use sitos::logger::Logger;
 use std::{env, process};
 
 fn main() {
@@ -17,6 +19,8 @@ fn main() {
             process::exit(1);
         }
     }
+
+    Logger::activate(Some("sitos.log".to_string()), Some(LevelFilter::Trace)).unwrap();
 
     let mut bit_torrent_instance = BitTorrent::new();
 

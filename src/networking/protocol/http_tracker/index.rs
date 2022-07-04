@@ -1,7 +1,7 @@
 #![allow(unused_variables)]
 
 pub use super::{Job, Protocol};
-use native_tls::{TlsConnector, TlsStream};
+use native_tls::TlsConnector;
 use std::collections::HashMap;
 use std::convert::AsRef;
 use std::io::prelude::{Read, Write};
@@ -36,16 +36,18 @@ impl HTTPTracker {
         }
     }
 
-    pub fn handshake_message_format(
+    pub fn format_handshake_message(
+        &self,
         address: &str,
         id: String,
         info_hash: String,
         port: u16,
-        left: i64,
+        left: u64,
+        downloaded: u64,
     ) -> String {
         format!(
-            "GET /announce?peer_id={}&info_hash={}&port={}&uploaded=0&downloaded=0&left={}&event=started HTTP/1.0\r\nHost: {}\r\n\r\n",
-            id, info_hash, port, left, address
+            "GET /{}?peer_id={}&numwant=100&info_hash={}&port={}&uploaded=0&downloaded={}&left={}&event=started HTTP/1.0\r\nHost: {}\r\n\r\n",
+            self.announce,id, info_hash, port, downloaded,left, address
         )
     }
 
@@ -82,17 +84,14 @@ impl HTTPTracker {
 }
 
 impl Protocol for HTTPTracker {
-    type Stream = TlsStream<TcpStream>;
+    type Stream = TcpStream;
 
-    fn connect(target_address: &str) -> Result<TlsStream<TcpStream>, String> {
+    fn connect(target_address: &str) -> Result<TcpStream, String> {
         let connector = TlsConnector::new().expect("Failed to creat TlsConnector");
         let split: Vec<&str> = target_address.split(':').collect();
 
-        match TcpStream::connect(format!("{}:443", split[0])) {
-            Ok(stream) => match connector.connect(split[0], stream) {
-                Ok(stream) => Ok(stream),
-                Err(_) => Err(String::from("Failed to connect to TlsConnector")),
-            },
+        match TcpStream::connect(target_address) {
+            Ok(stream) => Ok(stream),
             Err(_) => Err(format!("Failed to connect to {}", target_address)),
         }
     }
@@ -117,26 +116,6 @@ impl Protocol for HTTPTracker {
             let url_query = request_body
                 .get(1)
                 .expect("Failed to get url_query from request body");
-
-            // match *method {
-            //     "GET" => {
-            //         let mut self_pointer = self_pointer.lock().expect("Failed to lock Tracker");
-
-            //         let map = HTTPTracker::query_to_hashmap(url_query);
-
-            //         let peer_id = map.get("peer_id");
-
-            //         if let Some(new_peer) = peer_id {
-            //             let new_peer: usize = new_peer.parse().expect("Failed to parse peer");
-            //             self_pointer.add_peer(new_peer);
-            //         }
-
-            //         stream
-            //             .write_all(format!("{:?}", self_pointer.peers.clone()).as_bytes())
-            //             .expect("Failed to write");
-            //     }
-            //     _ => {}
-            // };
         })
     }
 

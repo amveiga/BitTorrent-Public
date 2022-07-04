@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::bencoder::{decode::Decoder, Types};
 use sha1::{Digest, Sha1};
 use std::{collections::HashMap, fs::File, io::Read, vec};

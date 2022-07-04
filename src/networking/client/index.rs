@@ -1,71 +1,43 @@
-#![allow(dead_code)]
-
-use super::Protocol;
-use std::collections::HashMap;
+use super::{NetworkingError, Protocol};
 use std::io::{Read, Write};
 
 pub struct Client<P: Protocol + Send + Sync + 'static> {
     protocol: P,
-    established_connections: HashMap<String, P::Stream>,
 }
-
-// un thread por cada conexión
-// lock para algun registro de descargas
-// algun lugar donde tengamos los join handles
 
 impl<P: Protocol + Send + Sync + 'static> Client<P> {
     pub fn new(protocol: P) -> Self {
-        Self {
-            protocol,
-            established_connections: HashMap::new(),
-        }
+        Self { protocol }
     }
 
-    pub fn connect(&mut self, target_address: &str) -> Result<(), String> {
+    pub fn get_protocol(&self) -> &P {
+        &self.protocol
+    }
+
+    pub fn connect(&mut self, target_address: &str) -> Result<P::Stream, NetworkingError> {
         match P::connect(target_address) {
-            Ok(stream) => {
-                self.established_connections
-                    .insert(target_address.to_string(), stream);
-
-                Ok(())
-            }
-            Err(error) => Err(error),
+            Ok(stream) => Ok(stream),
+            Err(_) => Err(NetworkingError::FailedToConnect),
         }
     }
 
-    // estas dos funciones cumplen mas de una cosa a la vez, podríamos separarlas en 3: send, read, get_stream
-    pub fn send_and_read<M: AsRef<[u8]>>(
-        &mut self,
-        to: &str,
-        message: M,
-    ) -> Result<Vec<u8>, String> {
-        let stream = self
-            .established_connections
-            .get_mut(to)
-            .expect("Unexistent stream");
-
-        stream
-            .write_all(message.as_ref())
-            .expect("Failed to write message");
-
+    pub fn read_to_end(&mut self, to: &mut P::Stream) -> Result<Vec<u8>, NetworkingError> {
         let mut contents: Vec<u8> = Vec::new();
 
-        match stream.read_to_end(&mut contents) {
+        match to.read_to_end(&mut contents) {
             Ok(_) => Ok(contents),
-            Err(_) => Err(String::from("Failed to read incoming stream")),
+            Err(_) => Err(NetworkingError::FailedToRead),
         }
     }
 
-    pub fn send_and_get_stream<M: AsRef<[u8]>>(&mut self, to: &str, message: M) -> &mut P::Stream {
-        let stream = self
-            .established_connections
-            .get_mut(to)
-            .expect("Unexistent stream");
-
-        stream
-            .write_all(message.as_ref())
-            .expect("Failed to write message");
-
-        stream
+    pub fn send<M: AsRef<[u8]>>(
+        &mut self,
+        to: &mut P::Stream,
+        message: M,
+    ) -> Result<(), NetworkingError> {
+        match to.write_all(message.as_ref()) {
+            Ok(_) => Ok(()),
+            Err(_) => Err(NetworkingError::FailedToSend),
+        }
     }
 }

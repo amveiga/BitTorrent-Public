@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use super::common::*;
 
 use std::collections::HashMap;

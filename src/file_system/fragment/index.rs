@@ -1,16 +1,16 @@
 use std::convert::From;
 
-pub struct Chunk {
+pub struct Fragment {
     content: Vec<u8>,
 }
 
-impl Chunk {
+impl Fragment {
     pub fn get_content(&self) -> &Vec<u8> {
         &self.content
     }
 }
 
-impl From<Vec<u8>> for Chunk {
+impl From<Vec<u8>> for Fragment {
     fn from(bytes: Vec<u8>) -> Self {
         Self { content: bytes }
     }

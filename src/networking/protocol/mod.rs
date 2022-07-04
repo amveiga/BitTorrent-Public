@@ -1,8 +1,10 @@
 pub use super::Job;
 pub use bit_torrent::*;
+pub use http_tracker::HTTPTracker;
+pub use https_tracker::HTTPSTracker;
 pub use index::Protocol;
-pub use tracker_protocol::HTTPTracker;
 
 mod bit_torrent;
+mod http_tracker;
+mod https_tracker;
 mod index;
-mod tracker_protocol;
