@@ -6,3 +6,4 @@ pub mod networking;
 pub mod torrent_file;
 pub mod urlencoder;
 pub mod utils;
+pub mod logger;
