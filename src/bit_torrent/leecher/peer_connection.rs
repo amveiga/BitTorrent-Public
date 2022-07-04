@@ -1,6 +1,8 @@
+use crate::frontend::torrents::TorrentData;
+
 use super::{
-    BTProtocol, Bitfield, Client, CommonInformation, Connections, Error, Message, NetworkingError,
-    Peer, PeerList, Piece, Protocol, State, BLOCK_LENGTH,
+    BTProtocol, Bitfield, CommonInformation, Connections, Error, InterfaceProtocol, Message,
+    NetworkingError, Peer, PeerList, Piece, Protocol, State, BLOCK_LENGTH,
 };
 use std::thread;
 
@@ -11,7 +13,7 @@ use std::{
 
 pub struct PeerConnection {
     peer: Peer,
-    client: Client<BTProtocol>,
+    client: InterfaceProtocol<BTProtocol>,
     bitfield: Arc<Mutex<Bitfield>>,
     peers: Arc<Mutex<PeerList>>,
     common_information: CommonInformation,
@@ -26,7 +28,7 @@ impl PeerConnection {
         common_information: CommonInformation,
         peer: Peer,
     ) -> Result<Self, NetworkingError> {
-        let mut client = Client::new(BTProtocol);
+        let mut client = InterfaceProtocol::new(BTProtocol);
 
         let stream = client.connect(&peer.get_address())?;
 
@@ -62,6 +64,7 @@ impl PeerConnection {
                         State::UnknownToPeer => match peer_connection.greet() {
                             Ok(new_state) => peer_connection.state = new_state,
                             _ => {
+                                peer_connection.state = State::Useless(false);
                                 break;
                             }
                         },
@@ -77,9 +80,17 @@ impl PeerConnection {
                                 peer_connection.state = new_state;
                                 log::info!("Downloaded piece")
                             }
-                            Err(_) => log::info!("Error downloading piece"),
+                            Err(_) => {
+                                log::info!("Error downloading piece");
+                                peer_connection.state = State::Useless(false);
+                            }
                         },
-                        State::Useless(_) | State::FileDownloaded => {
+                        State::Useless(_) => {
+                            peers.lock().unwrap().remove(&peer.ip);
+                            connections.lock().unwrap().remove(&peer.ip);
+                            break;
+                        }
+                        State::FileDownloaded => {
                             break;
                         }
                     }
@@ -243,7 +254,8 @@ impl PeerConnection {
             log::debug!("PeerConnection::download_piece() - trying to download piece");
             let (piece_index, block_offset, block_length) = piece.get_next_block_attributes();
 
-            self.client
+            if self
+                .client
                 .send(
                     &mut self.stream,
                     Message::Request {
@@ -254,7 +266,11 @@ impl PeerConnection {
                     .parse()
                     .expect("Failed to parse request message"),
                 )
-                .unwrap();
+                .is_err()
+            {
+                self.bitfield.lock().unwrap().unset_downloading(piece_index);
+                return Err(Error::FailedToSavePiece);
+            }
 
             loop {
                 match Message::read_message_from_stream(&mut self.stream, false) {
@@ -263,7 +279,8 @@ impl PeerConnection {
                         break;
                     }
                     Err(_) => {
-                        break;
+                        self.bitfield.lock().unwrap().unset_downloading(piece_index);
+                        return Err(Error::FailedMessageRead);
                     }
                     _ => {}
                 }
@@ -278,10 +295,15 @@ impl PeerConnection {
                 let mut have_guard = self.bitfield.lock().unwrap();
                 log::debug!("PeerConnection::download_piece() - bitfield lock obtained");
                 have_guard.set(piece_index);
+                let peers_guard = self.peers.lock().unwrap();
+                TorrentData::refresh(&self.common_information, &peers_guard, &have_guard);
                 drop(have_guard);
                 log::debug!("PeerConnection::download_piece() - bitfield lock dropped");
+
                 return Ok(State::Downloading);
             }
+
+            self.bitfield.lock().unwrap().unset_downloading(piece_index);
             return Err(Error::FailedToSavePiece);
         }
 

@@ -1,8 +1,9 @@
-use std::sync::{Arc, Mutex};
-
+use super::{
+    Bitfield, CommonInformation, PeerHandler, PeerList, Torrent, TorrentData, TrackerConnection,
+};
 use crate::file_system::File;
-
-use super::{Bitfield, CommonInformation, PeerHandler, PeerList, Torrent, TrackerConnection};
+use gtk::glib::Sender;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
 pub struct Leecher {
@@ -13,10 +14,10 @@ pub struct Leecher {
 }
 
 impl Leecher {
-    pub fn new(torrent_pathname: &str) -> Self {
+    pub fn new(torrent_pathname: &str, sender: Arc<Mutex<Sender<TorrentData>>>) -> Self {
         let torrent = Torrent::new_from_pathname(torrent_pathname);
 
-        let common_information = CommonInformation::new(&torrent);
+        let common_information = CommonInformation::new(&torrent, torrent_pathname, sender);
 
         let have = Arc::new(Mutex::new(Bitfield::new(common_information.total_pieces)));
         let peers = Arc::new(Mutex::new(PeerList::new()));
@@ -56,11 +57,16 @@ impl Leecher {
             let download_thread = peer_handler.activate();
 
             download_thread.join().expect("Failed to join thread");
-            File::join_pieces(
-                format!("./download_temp/{}", self.common_information.file_name),
-                format!("./{}", self.common_information.file_name),
-            )
-            .unwrap();
+
+            let bitfield_guard = self.have.lock().unwrap();
+
+            if bitfield_guard.is_complete() {
+                File::join_pieces(
+                    format!("./download_temp/{}", self.common_information.file_name),
+                    format!("./{}", self.common_information.file_name),
+                )
+                .unwrap();
+            }
         })
     }
 }

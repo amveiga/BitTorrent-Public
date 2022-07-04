@@ -1,7 +1,6 @@
 use super::Peer;
 
-#[derive(Debug)]
-
+#[derive(Debug, Default)]
 pub struct PeerList {
     peers: Vec<Peer>,
     in_use: usize,
@@ -10,6 +9,14 @@ pub struct PeerList {
 impl PeerList {
     pub fn active(&self) -> usize {
         self.in_use
+    }
+
+    pub fn len(&self) -> usize {
+        self.peers.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.peers.is_empty()
     }
 
     pub fn new() -> Self {

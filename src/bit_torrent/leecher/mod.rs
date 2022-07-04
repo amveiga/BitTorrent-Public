@@ -1,5 +1,5 @@
 pub use super::*;
-pub use client::ClientHandler;
+pub use client::InterfaceProtocolHandler;
 pub use common_information::CommonInformation;
 pub use connections::Connections;
 pub use errors::Error;

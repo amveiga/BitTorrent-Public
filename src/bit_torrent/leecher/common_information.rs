@@ -1,6 +1,8 @@
+use std::sync::{Arc, Mutex};
+
 use sha1::{Digest, Sha1};
 
-use crate::{torrent_file::Torrent, utils::random_u64_as_bytes};
+use crate::{frontend::torrents::TorrentData, torrent_file::Torrent, utils::random_u64_as_bytes};
 
 #[derive(Clone, Debug)]
 
@@ -12,10 +14,16 @@ pub struct CommonInformation {
     pub total_pieces: usize,
     pub file_name: String,
     pub file_length: u64,
+    pub torrent_pathname: String,
+    pub tx: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
 }
 
 impl CommonInformation {
-    pub fn new(torrent: &Torrent) -> Self {
+    pub fn new(
+        torrent: &Torrent,
+        torrent_pathname: &str,
+        tx: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
+    ) -> Self {
         let pieces = torrent
             .get_pieces()
             .expect("Corrupted torrent, no pieces attribute");
@@ -48,6 +56,8 @@ impl CommonInformation {
             info_hash,
             file_name,
             file_length,
+            torrent_pathname: torrent_pathname.to_string(),
+            tx,
         }
     }
 }

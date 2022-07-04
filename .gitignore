@@ -10,5 +10,5 @@
 
 /target
 .DS_Store
-/sitos.log
+/*.log
 /download_temp

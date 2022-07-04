@@ -1,6 +1,8 @@
+use crate::frontend::torrents::TorrentData;
+
 use super::{
-    utils::split_u8, Bitfield, ClientHandler, CommonInformation, Decoder, NetworkingError, Peer,
-    PeerList, Types, UrlEncoder,
+    utils::split_u8, Bitfield, CommonInformation, Decoder, InterfaceProtocolHandler,
+    NetworkingError, Peer, PeerList, Types, UrlEncoder,
 };
 use std::thread::{self};
 
@@ -10,7 +12,7 @@ use std::{
 };
 
 pub struct TrackerConnection {
-    client: ClientHandler,
+    client: InterfaceProtocolHandler,
     bitfield: Arc<Mutex<Bitfield>>,
     peers: Arc<Mutex<PeerList>>,
     common_information: CommonInformation,
@@ -25,7 +27,7 @@ impl TrackerConnection {
         peers: Arc<Mutex<PeerList>>,
         common_information: CommonInformation,
     ) -> Result<Self, NetworkingError> {
-        let (client, tracker_address) = ClientHandler::new(announce)?;
+        let (client, tracker_address) = InterfaceProtocolHandler::new(announce)?;
 
         Ok(Self {
             client,
@@ -71,7 +73,6 @@ impl TrackerConnection {
                 };
 
                 if let Ok(response) = response {
-                    // TODO: Hay que ver cuando nos responde algo que no esperamos porque rompe muy cada tanto
                     let slice = split_u8(response, b"\r\n\r\n");
 
                     if let Ok(Types::Dictionary(dict)) = Decoder::new_from_bytes(&slice).decode() {
@@ -96,8 +97,13 @@ impl TrackerConnection {
                             let peers =
                                 Peer::new_from_list(list, self.common_information.total_pieces);
                             peers_guard.update(peers);
-
+                            let bitfield_guard = self.bitfield.lock().unwrap();
                             retries = 3;
+                            TorrentData::refresh(
+                                &self.common_information,
+                                &peers_guard,
+                                &bitfield_guard,
+                            );
                         }
                     } else {
                         retries -= 1;

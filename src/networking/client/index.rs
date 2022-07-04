@@ -1,11 +1,11 @@
 use super::{NetworkingError, Protocol};
 use std::io::{Read, Write};
 
-pub struct Client<P: Protocol + Send + Sync + 'static> {
+pub struct InterfaceProtocol<P: Protocol + Send + Sync + 'static> {
     protocol: P,
 }
 
-impl<P: Protocol + Send + Sync + 'static> Client<P> {
+impl<P: Protocol + Send + Sync + 'static> InterfaceProtocol<P> {
     pub fn new(protocol: P) -> Self {
         Self { protocol }
     }

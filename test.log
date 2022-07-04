@@ -1,5 +1,0 @@
-[00:00:01.005] ERROR  [sitos::logger::index::tests:153] El sito les informa
-[00:00:02.009] WARN   [sitos::logger::index::tests:155] Que hay un warn
-[00:00:03.013] INFO   [sitos::logger::index::tests:157] En mi casa hay una info
-[00:00:04.017] DEBUG  [sitos::logger::index::tests:159] Y en mi corazon un debug
-[00:00:05.021] TRACE  [sitos::logger::index::tests:161] Que pueda trazar mi camino

@@ -1,28 +1,28 @@
+use gtk::gdk;
+use gtk::prelude::*;
 use log::LevelFilter;
-use sitos::bit_torrent::BitTorrent;
-use sitos::csv_env::set_env;
+use sitos::frontend::index as frontend;
 use sitos::logger::Logger;
-use std::{env, process};
 
 fn main() {
-    let args: Vec<String> = env::args().collect();
-    match args.len() {
-        2 => {
-            set_env(String::from("default"));
-        }
-        3 => {
-            let env_type = String::from(&args[2]);
-            set_env(env_type);
-        }
-        _ => {
-            eprintln!("Error! Wrong arguments use: <.TORRENT PATH>, optional: <ENV>");
-            process::exit(1);
-        }
-    }
+    Logger::activate(Some("sitos.log".to_string()), Some(LevelFilter::Info)).unwrap();
+    let application = gtk::Application::new(Some("sitos.bit.torrent"), Default::default());
 
-    Logger::activate(Some("sitos.log".to_string()), Some(LevelFilter::Trace)).unwrap();
+    application.connect_startup(|_app| {
+        let provider = gtk::CssProvider::new();
+        // Load the CSS file
+        let style = include_bytes!("frontend/style.css");
+        provider.load_from_data(style).expect("Failed to load CSS");
+        // We give the CssProvided to the default screen so the CSS rules we added
+        // can be applied to our window.
+        gtk::StyleContext::add_provider_for_screen(
+            &gdk::Screen::default().expect("Error initializing gtk css provider."),
+            &provider,
+            gtk::STYLE_PROVIDER_PRIORITY_APPLICATION,
+        );
+    });
 
-    let mut bit_torrent_instance = BitTorrent::new();
+    application.connect_activate(frontend::build_ui);
 
-    bit_torrent_instance.new_leecher(&args[1]);
+    application.run();
 }

@@ -1,11 +1,17 @@
-use super::{Client, HTTPSTracker, HTTPTracker, NetworkingError, Protocol};
+use super::{HTTPSTracker, HTTPTracker, InterfaceProtocol, NetworkingError, Protocol};
 
-pub enum ClientHandler {
-    Http(Client<HTTPTracker>, <HTTPTracker as Protocol>::Stream),
-    Https(Client<HTTPSTracker>, <HTTPSTracker as Protocol>::Stream),
+pub enum InterfaceProtocolHandler {
+    Http(
+        InterfaceProtocol<HTTPTracker>,
+        <HTTPTracker as Protocol>::Stream,
+    ),
+    Https(
+        InterfaceProtocol<HTTPSTracker>,
+        <HTTPSTracker as Protocol>::Stream,
+    ),
 }
 
-impl ClientHandler {
+impl InterfaceProtocolHandler {
     pub fn new(tracker_address: String) -> Result<(Self, String), NetworkingError> {
         let address_split = tracker_address.split("://").collect::<Vec<&str>>();
 
@@ -19,7 +25,7 @@ impl ClientHandler {
 
         match protocol {
             "http" => {
-                let mut client = Client::new(HTTPTracker::new(Some(endpoint)));
+                let mut client = InterfaceProtocol::new(HTTPTracker::new(Some(endpoint)));
 
                 if let Ok(stream) = client.connect(&base) {
                     return Ok((Self::Http(client, stream), base));
@@ -29,7 +35,7 @@ impl ClientHandler {
             "https" => {
                 let base = format!("{}:443", base);
 
-                let mut client = Client::new(HTTPSTracker::new(Some(endpoint)));
+                let mut client = InterfaceProtocol::new(HTTPSTracker::new(Some(endpoint)));
 
                 if let Ok(stream) = client.connect(&base) {
                     return Ok((Self::Https(client, stream), base));

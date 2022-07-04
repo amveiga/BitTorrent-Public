@@ -1,0 +1,16 @@
+.list_center button {
+    background-color: black;
+    color: white
+}
+
+.list_center{
+    font-size: large;
+}
+
+.torrent_info {
+    font-size: large;
+}
+
+.peers_info {
+    font-size: large;
+}

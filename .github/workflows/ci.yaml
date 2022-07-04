@@ -22,8 +22,10 @@ env:
 
 jobs:
   lint:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
+      - name: Install GTK
+        run: sudo apt-get install -y libgtk-3-dev
       - uses: actions/checkout@v2
       - name: Run format check
         run: cargo fmt --check
@@ -34,8 +36,10 @@ jobs:
 
   test:
     needs: [lint] # Run after lint has successfully passed
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
+      - name: Install GTK
+        run: sudo apt-get install -y libgtk-3-dev   
       - uses: actions/checkout@v2
       - name: Run tests
         run: cargo test

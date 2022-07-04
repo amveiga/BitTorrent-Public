@@ -58,6 +58,13 @@ impl Bitfield {
         self.downloading[piece_index] |= 128 >> piece_subindex;
     }
 
+    pub fn unset_downloading(&mut self, index: usize) {
+        let piece_index = index / 8;
+        let piece_subindex = index % 8;
+
+        self.downloading[piece_index] &= !(128 >> piece_subindex);
+    }
+
     pub fn has(&self, index: usize) -> bool {
         let piece_index = index / 8;
         let piece_subindex = index % 8;

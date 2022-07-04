@@ -4,4 +4,5 @@ pub enum Error {
     FailedToSavePiece,
     NoNewPiecesFromPeer,
     FailedToUnchoke,
+    FailedMessageRead,
 }

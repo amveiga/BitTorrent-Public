@@ -35,8 +35,7 @@ impl PeerHandler {
             drop(bitfield_guard);
 
             let mut peers_guard = self.peers.lock().unwrap();
-
-            if peers_guard.active() == 10 {
+            if peers_guard.active() == 40 {
                 drop(peers_guard);
                 thread::yield_now();
                 continue;
