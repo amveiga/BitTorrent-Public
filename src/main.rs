@@ -1,10 +1,12 @@
 use gtk::gdk;
 use gtk::prelude::*;
 use log::LevelFilter;
+use sitos::csv_env as bitEnv;
 use sitos::frontend::index as frontend;
 use sitos::logger::Logger;
 
 fn main() {
+    bitEnv::set_env(String::from("congif"));
     Logger::activate(Some("sitos.log".to_string()), Some(LevelFilter::Info)).unwrap();
     let application = gtk::Application::new(Some("sitos.bit.torrent"), Default::default());
 

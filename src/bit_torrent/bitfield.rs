@@ -18,6 +18,20 @@ impl Bitfield {
         true
     }
 
+    pub fn is_null(&self) -> bool {
+        for i in 0..self.total_pieces {
+            if self.has(i) {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn get(&self) -> Vec<u8> {
+        self.have.clone()
+    }
+
     pub fn index_from_bytes(bytes: Vec<u8>) -> Result<usize, String> {
         let maybe_bytes: Result<[u8; 4], _> = bytes.try_into();
 

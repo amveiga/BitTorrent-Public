@@ -2,14 +2,12 @@ use crate::frontend::torrents::TorrentData;
 
 use super::{
     utils::split_u8, Bitfield, CommonInformation, Decoder, InterfaceProtocolHandler,
-    NetworkingError, Peer, PeerList, Types, UrlEncoder,
+    NetworkingError, PeerList, PeerRecord, PeerState, Types, UrlEncoder,
 };
 use std::thread::{self};
+use std::time::Instant;
 
-use std::{
-    sync::{Arc, Mutex},
-    time::Duration,
-};
+use std::sync::{Arc, Mutex};
 
 pub struct TrackerConnection {
     client: InterfaceProtocolHandler,
@@ -18,6 +16,7 @@ pub struct TrackerConnection {
     common_information: CommonInformation,
     tracker_address: String,
     sleep: u64,
+    state: Arc<Mutex<PeerState>>,
 }
 
 impl TrackerConnection {
@@ -26,10 +25,12 @@ impl TrackerConnection {
         bitfield: Arc<Mutex<Bitfield>>,
         peers: Arc<Mutex<PeerList>>,
         common_information: CommonInformation,
+        state: Arc<Mutex<PeerState>>,
     ) -> Result<Self, NetworkingError> {
         let (client, tracker_address) = InterfaceProtocolHandler::new(announce)?;
 
         Ok(Self {
+            state,
             client,
             bitfield,
             peers,
@@ -39,23 +40,25 @@ impl TrackerConnection {
         })
     }
 
-    pub fn activate(mut self, listening_port: u16) {
+    pub fn activate(mut self, listening_port: u16, listening_ip: String) -> thread::JoinHandle<()> {
         thread::spawn(move || {
             let mut retries = 3;
 
             loop {
+                if let PeerState::Broken = &*self.state.lock().unwrap() {
+                    break;
+                }
+
                 let mut peers_guard = self.peers.lock().unwrap();
                 if retries == 0 {
-                    log::error!("TrackerConnection::activate() - No retries left");
+                    *self.state.lock().unwrap() = PeerState::Broken;
                     panic!("Tracker unavailable - No retries left");
                 }
-                log::debug!("TrackerConnection::activate() - trying to obtain bitfield lock");
                 let bitfield_guard = self.bitfield.lock().unwrap();
-                log::debug!("TrackerConnection::activate() - bitfield lock obtained");
+
                 let (downloaded, left) = bitfield_guard.status();
 
                 drop(bitfield_guard);
-                log::debug!("TrackerConnection::activate() - bitfield lock dropped");
 
                 let request = self.client.format_handshake_message(
                     &self.tracker_address,
@@ -94,9 +97,15 @@ impl TrackerConnection {
                             );
                             log::debug!("TrackerConnection::activate() - PeerList lock obtained");
 
-                            let peers =
-                                Peer::new_from_list(list, self.common_information.total_pieces);
+                            let peers = PeerRecord::new_from_list(
+                                list,
+                                self.common_information.total_pieces,
+                            );
+
                             peers_guard.update(peers);
+
+                            peers_guard.remove(&listening_ip, listening_port as i64);
+
                             let bitfield_guard = self.bitfield.lock().unwrap();
                             retries = 3;
                             TorrentData::refresh(
@@ -113,10 +122,21 @@ impl TrackerConnection {
                 }
 
                 drop(peers_guard);
-                log::debug!("TrackerConnection::activate() - PeerList lock dropped");
 
-                thread::sleep(Duration::from_secs(self.sleep));
+                let last_call = Instant::now();
+
+                loop {
+                    if let PeerState::Broken = &*self.state.lock().unwrap() {
+                        break;
+                    }
+
+                    if last_call.elapsed().as_secs() >= self.sleep {
+                        break;
+                    }
+
+                    thread::yield_now();
+                }
             }
-        });
+        })
     }
 }

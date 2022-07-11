@@ -5,19 +5,21 @@ use gtk::pango;
 use gtk::prelude::*;
 use gtk::ListStore;
 use gtk::TreeIter;
+use std::collections::HashMap;
 use std::fmt::Write;
 use std::rc::Rc;
 use std::sync::mpsc::Sender;
-
+use std::sync::Arc;
+use std::sync::Mutex;
 #[derive(Debug)]
 pub struct TorrentData {
     pub name: String,
     pub hash: String,
     pub size: String,
-    pub pices: u32,
+    pub pieces: u32,
     pub peers: u32,
     pub done: f64,
-    pub pices_done: u32,
+    pub pieces_done: u32,
     pub connections: u32,
     pub torrent_pathname: String,
 }
@@ -29,24 +31,35 @@ impl TorrentData {
             write!(&mut info_hash, "{:X}", byte).expect("Unable to write");
         }
         let mut size: String = (common_information.file_length).to_string();
-        if common_information.file_length / 1048576 > 1 {
-            size = format!("{} MB", (common_information.file_length / 1048576));
+        if common_information.file_length / 1073741824 > 1 {
+            size = format!(
+                "{:.2} GB",
+                (common_information.file_length as f64 / 1073741824_f64)
+            );
+        } else if common_information.file_length / 1048576 > 1 {
+            size = format!(
+                "{:.2} MB",
+                (common_information.file_length as f64 / 1048576_f64)
+            );
         } else if common_information.file_length / 1024 > 1 {
-            size = format!("{} KB", (common_information.file_length / 1024));
+            size = format!(
+                "{:.2} KB",
+                (common_information.file_length as f64 / 1024_f64)
+            );
         }
         let torrent_data = TorrentData {
             name: String::from(&common_information.file_name),
             hash: info_hash,
             size,
-            pices: common_information.total_pieces.try_into().unwrap(),
+            pieces: common_information.total_pieces.try_into().unwrap(),
             peers: peers.len().try_into().unwrap(),
             done: ((have.status().0 * 100) as f64 / common_information.total_pieces as f64),
-            pices_done: have.status().0.try_into().unwrap(),
+            pieces_done: have.status().0.try_into().unwrap(),
             connections: peers.active().try_into().unwrap(),
             torrent_pathname: String::from(&common_information.torrent_pathname),
         };
         common_information
-            .tx
+            .tx_torrent
             .lock()
             .unwrap()
             .send(torrent_data)
@@ -59,6 +72,7 @@ pub fn get_view(
     data: &[TorrentData],
     gtk_rx_torrent: GtkReceiver<TorrentData>,
     path_tx: Sender<String>,
+    remove_senders: Arc<Mutex<HashMap<String, Sender<String>>>>,
 ) {
     // Torrent vbox and label
     let vbox_torrent: gtk::Box = builder.object("list_box").expect("Couldn't get vbox");
@@ -136,10 +150,10 @@ pub fn get_view(
              name: torrent_name,
              hash: String::from(""),
              size: String::from(""),
-             pices: 0,
+             pieces: 0,
              peers: 0,
              done: 0.0,
-             pices_done: 0,
+             pieces_done: 0,
              connections: 0,
              torrent_pathname: String::from(torrent_path.to_str().unwrap()),
         };
@@ -159,6 +173,9 @@ pub fn get_view(
     remove_torrent.connect_clicked(glib::clone!(@weak remove_torrent => move |_| {
         let selected = treeview_torrent_clone.selection().selected();
         if let Some(selected) = selected {
+            let iter:TreeIter = selected.1;
+            let path = model_torrent_clone.value(&iter, 8).get::<String>().expect("Treeview selection, column 8");
+            remove_senders.lock().unwrap().get(&path).unwrap().send("End".to_string()).unwrap();
             model_torrent_clone.remove(&(selected.1));
             let mut attr = pango::AttrColor::new_foreground(0, 0, 0);
             attr.set_start_index(0);
@@ -178,7 +195,7 @@ pub fn get_view(
                 let iter:TreeIter = selected.1;
                 let name = model_torrent_clone.value(&iter, 0).get::<String>().expect("Treeview selection, column 0");
                 let info = &format!(
-                    "Name: {}\nHash: {}\nSize: {}\nPices: {}\nPeers: {}\nDone: {}\nPices done: {}\nconnections: {}\nPathname: {}\n",
+                    "Name: {}\nHash: {}\nSize: {}\npieces: {}\nPeers: {}\nDone: {}\npieces done: {}\nconnections: {}\nPathname: {}\n",
                     name,
                     model_torrent_clone.value(&iter, 1).get::<String>().expect("Treeview selection, column 1"),
                     model_torrent_clone.value(&iter, 2).get::<String>().expect("Treeview selection, column 2"),
@@ -203,21 +220,24 @@ pub fn get_view(
     gtk_rx_torrent.attach(None, move |msg| {
         let msg = msg;
         {
-            let tree_iter = model_torrent_clone.iter_children(None).unwrap();
-            let mut has_next = true;
-            while has_next {
-                let torrent_pathname = model_torrent_clone
-                    .value(&tree_iter, 8)
-                    .get::<String>()
-                    .expect("Treeview selection, column 8");
-                if torrent_pathname == msg.torrent_pathname {
-                    model_torrent_clone.remove(&(tree_iter));
-                    insert_torrent_row(&model_torrent_clone, &msg);
-                    break;
-                } else {
-                    has_next = model_torrent_clone.iter_next(&tree_iter)
+            if model_torrent_clone.iter_children(None).is_some() {
+                let tree_iter = model_torrent_clone
+                    .iter_children(None)
+                    .expect("No children");
+                let mut has_next = true;
+                while has_next {
+                    let torrent_pathname = model_torrent_clone
+                        .value(&tree_iter, 8)
+                        .get::<String>()
+                        .expect("Treeview selection, column 8");
+                    if torrent_pathname == msg.torrent_pathname {
+                        update_row(&model_torrent_clone, &tree_iter, &msg);
+                        break;
+                    } else {
+                        has_next = model_torrent_clone.iter_next(&tree_iter)
+                    }
                 }
-            }
+            };
         }
         glib::Continue(true)
     });
@@ -244,10 +264,10 @@ fn create_model_torrents(data: &[TorrentData]) -> gtk::ListStore {
             (0, &d.name),
             (1, &d.hash),
             (2, &d.size),
-            (3, &d.pices),
+            (3, &d.pieces),
             (4, &d.peers),
             (5, &done_percentage),
-            (6, &d.pices_done),
+            (6, &d.pieces_done),
             (7, &d.connections),
             (8, &d.torrent_pathname),
         ];
@@ -289,12 +309,12 @@ fn add_columns_torrents(_model: &Rc<gtk::ListStore>, treeview: &gtk::TreeView) {
         column.set_sort_column_id(2);
         treeview.append_column(&column);
     }
-    // Column for Pices
+    // Column for pieces
     {
         let renderer = gtk::CellRendererText::new();
         let column = gtk::TreeViewColumn::new();
         column.pack_start(&renderer, true);
-        column.set_title("Pices");
+        column.set_title("pieces");
         column.add_attribute(&renderer, "text", 3);
         column.set_sort_column_id(3);
         treeview.append_column(&column);
@@ -309,7 +329,7 @@ fn add_columns_torrents(_model: &Rc<gtk::ListStore>, treeview: &gtk::TreeView) {
         column.set_sort_column_id(4);
         treeview.append_column(&column);
     }
-    // Column for Pices done
+    // Column for pieces done
     {
         let renderer = gtk::CellRendererText::new();
         let column = gtk::TreeViewColumn::new();
@@ -319,12 +339,12 @@ fn add_columns_torrents(_model: &Rc<gtk::ListStore>, treeview: &gtk::TreeView) {
         column.set_sort_column_id(5);
         treeview.append_column(&column);
     }
-    // Column for Pices done
+    // Column for pieces done
     {
         let renderer = gtk::CellRendererText::new();
         let column = gtk::TreeViewColumn::new();
         column.pack_start(&renderer, true);
-        column.set_title("Pices done");
+        column.set_title("pieces done");
         column.add_attribute(&renderer, "text", 6);
         column.set_sort_column_id(6);
         treeview.append_column(&column);
@@ -357,13 +377,30 @@ fn insert_torrent_row(list: &Rc<ListStore>, data: &TorrentData) {
         (0, &data.name),
         (1, &data.hash),
         (2, &data.size),
-        (3, &data.pices),
+        (3, &data.pieces),
         (4, &data.peers),
         (5, &done_percentage),
-        (6, &data.pices_done),
+        (6, &data.pieces_done),
         (7, &data.connections),
         (8, &data.torrent_pathname),
     ];
 
     list.insert_with_values(Some(100), &values);
+}
+
+fn update_row(list: &Rc<ListStore>, tree_iter: &TreeIter, data: &TorrentData) {
+    let done_percentage: String = format!("{:.2}%", &data.done);
+    let values: [(u32, &dyn ToValue); 9] = [
+        (0, &data.name),
+        (1, &data.hash),
+        (2, &data.size),
+        (3, &data.pieces),
+        (4, &data.peers),
+        (5, &done_percentage),
+        (6, &data.pieces_done),
+        (7, &data.connections),
+        (8, &data.torrent_pathname),
+    ];
+
+    list.set(tree_iter, &values);
 }

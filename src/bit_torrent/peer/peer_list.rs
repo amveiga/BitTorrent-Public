@@ -1,8 +1,8 @@
-use super::Peer;
+use super::PeerRecord;
 
 #[derive(Debug, Default)]
 pub struct PeerList {
-    peers: Vec<Peer>,
+    peers: Vec<PeerRecord>,
     in_use: usize,
 }
 
@@ -26,9 +26,13 @@ impl PeerList {
         }
     }
 
-    pub fn update(&mut self, incoming_peers: Vec<Peer>) {
+    pub fn update(&mut self, incoming_peers: Vec<PeerRecord>) {
         for peer in incoming_peers {
-            if self.peers.iter().any(|some_peer| some_peer.ip == peer.ip) {
+            if self
+                .peers
+                .iter()
+                .any(|some_peer| some_peer.ip == peer.ip && some_peer.port == peer.port)
+            {
                 continue;
             } else {
                 self.peers.push(peer);
@@ -36,7 +40,7 @@ impl PeerList {
         }
     }
 
-    pub fn pop(&mut self) -> Option<Peer> {
+    pub fn pop(&mut self) -> Option<PeerRecord> {
         for peer in &mut self.peers {
             if !peer.in_use {
                 peer.in_use = true;
@@ -48,8 +52,12 @@ impl PeerList {
         None
     }
 
-    pub fn remove(&mut self, ip: &str) {
-        if let Some(index) = self.peers.iter().position(|peer| peer.ip == *ip) {
+    pub fn remove(&mut self, ip: &str, port: i64) {
+        if let Some(index) = self
+            .peers
+            .iter()
+            .position(|peer| peer.ip == *ip && peer.port == port)
+        {
             if self.peers[index].in_use {
                 self.in_use -= 1;
             }

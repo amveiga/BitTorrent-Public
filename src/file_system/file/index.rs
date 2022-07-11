@@ -1,6 +1,6 @@
 use crate::file_system::get_sorted_paths;
 
-use super::Fragment;
+use std::env;
 use std::fs::{self, remove_dir_all, remove_file, File as Handler};
 
 use std::convert::AsRef;
@@ -60,15 +60,21 @@ impl File {
         contents
     }
 
-    pub fn get_chunk(&mut self, chunk_size: usize, chunk_number: usize) -> Fragment {
+    pub fn get_block(
+        &mut self,
+        piece_index: usize,
+        piece_size: usize,
+        block_size: usize,
+        block_offset: usize,
+    ) -> Vec<u8> {
         let handler = File::open_file(&self.pathname).expect("Error opening file");
 
-        let file_as_bytes = (handler).bytes();
+        let file_as_bytes = handler.bytes();
 
         let mut bytes: Vec<u8> = Vec::new();
 
-        let first_byte = chunk_number * chunk_size;
-        let last_byte = first_byte + chunk_size;
+        let first_byte = piece_index * piece_size + block_offset;
+        let last_byte = first_byte + block_size;
 
         for (byte_number, byte) in file_as_bytes.enumerate() {
             if let Ok(byte_value) = byte {
@@ -78,7 +84,7 @@ impl File {
             }
         }
 
-        Fragment::from(bytes)
+        bytes
     }
 
     pub fn new_file_from_piece<T: AsRef<Path>>(piece: &[u8], pathname: T) -> Result<Self, Error> {
@@ -89,13 +95,19 @@ impl File {
             .to_owned();
 
         let dir = fs::create_dir_all(format!(
-            "./download_temp/{}",
+            "{}/{}",
+            env::var("TEMP_PATH")
+                .unwrap_or_else(|_| "".to_string())
+                .as_str(),
             pathname.split(".piece").collect::<Vec<&str>>()[0]
         ));
         if dir.is_err() {}
 
         let mut handler = File::open_file(&format!(
-            "./download_temp/{}/{}",
+            "{}/{}/{}",
+            env::var("TEMP_PATH")
+                .unwrap_or_else(|_| "".to_string())
+                .as_str(),
             pathname.split(".piece").collect::<Vec<&str>>()[0],
             pathname
         ))?;
@@ -113,11 +125,27 @@ impl File {
 
     pub fn join_pieces<T: AsRef<Path>>(path_from: T, path_to: T) -> Result<(), Error> {
         let sorted_path = get_sorted_paths(path_from.as_ref().to_str().unwrap());
+
+        let path_to = path_to
+            .as_ref()
+            .to_str()
+            .expect("Error converting to str")
+            .to_owned();
+
+        let mut split: Vec<&str> = path_to.split('/').collect();
+
+        split.pop();
+
+        let dir = split.join("/");
+
+        fs::create_dir_all(dir)?;
+
         let mut new_file = Self::new(&path_to);
 
         for piece_path in sorted_path {
             new_file.concat(piece_path)?
         }
+
         remove_dir_all(path_from.as_ref())?;
         Ok(())
     }

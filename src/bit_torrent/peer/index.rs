@@ -1,55 +1,110 @@
-use super::{Bitfield, Types};
-use std::collections::LinkedList;
-use std::net::Ipv6Addr;
+use crate::bit_torrent::peer::RemoveTorrent;
+use crate::frontend::peers::PeersData;
 
-#[derive(Clone, Debug)]
+use super::{
+    Bitfield, CommonInformation, PeerHandler, PeerList, PeerState, ServerHandler, Torrent,
+    TorrentData, TrackerConnection,
+};
+use gtk::glib::Sender;
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex};
+use std::thread;
+
 pub struct Peer {
-    pub ip: String,
-    pub port: i64,
-    pub has: Bitfield,
-    pub ipv6: bool,
-    pub in_use: bool,
+    common_information: CommonInformation,
+    have: Arc<Mutex<Bitfield>>,
+    torrent: Torrent,
+    peers: Arc<Mutex<PeerList>>,
+    state: Arc<Mutex<PeerState>>,
+    handlers: Vec<thread::JoinHandle<()>>,
 }
 
 impl Peer {
-    pub fn get_address(&self) -> String {
-        match self.ipv6 {
-            true => {
-                let addr: Ipv6Addr = self.ip.parse().expect("Failed to parse ipv6 addr");
+    pub fn new(
+        torrent_pathname: &str,
+        temp_directory: &str,
+        download_directory: &str,
+        sender_torrent: Arc<Mutex<Sender<TorrentData>>>,
+        sender_peers: Arc<Mutex<Sender<PeersData>>>,
+    ) -> Self {
+        let torrent = Torrent::new_from_pathname(torrent_pathname);
 
-                format!("{}:{}", addr, self.port)
-            }
-            false => format!("{}:{}", self.ip, self.port),
+        let common_information = CommonInformation::new(
+            &torrent,
+            torrent_pathname,
+            temp_directory,
+            download_directory,
+            sender_torrent,
+            sender_peers,
+        );
+
+        let have = Arc::new(Mutex::new(Bitfield::new(common_information.total_pieces)));
+        let peers = Arc::new(Mutex::new(PeerList::new()));
+
+        Self {
+            state: Arc::new(Mutex::new(PeerState::NoPieces(format!(
+                "{}/{}",
+                download_directory, common_information.file_name
+            )))),
+            common_information,
+            have,
+            peers,
+            torrent,
+            handlers: Vec::new(),
         }
     }
 
-    pub fn new_from_list(list: &LinkedList<Types>, total_pieces: usize) -> Vec<Self> {
-        let mut peer_list: Vec<Self> = Vec::new();
+    pub fn activate(mut self, remove_rx: Receiver<String>) -> thread::JoinHandle<()> {
+        thread::spawn(move || {
+            self.handlers.push(RemoveTorrent::wait_signal(
+                self.common_information.torrent_pathname.clone(),
+                remove_rx,
+                Arc::clone(&self.state),
+            ));
 
-        list.iter().for_each(|peer| {
-            if let Types::Dictionary(peer) = peer {
-                let ip = peer
-                    .get(&b"ip".to_vec())
-                    .expect("Failed to parse ip for peer");
+            let announce =
+                String::from_utf8(self.torrent.get_announce().expect("Failed to get announce"))
+                    .expect("Failed to parse announce");
 
-                let port = peer
-                    .get(&b"port".to_vec())
-                    .expect("Failed to parse port for peer");
+            let server_handler = ServerHandler::new(
+                Arc::clone(&self.have),
+                self.common_information.clone(),
+                Arc::clone(&self.state),
+            )
+            .expect("Failed to create server handler");
 
-                if let (Types::String(ip), Types::Integer(port)) = (ip, port) {
-                    let ip = String::from_utf8(ip.clone()).expect("Malformed peer ip");
+            let tracker_connection = TrackerConnection::new(
+                announce,
+                Arc::clone(&self.have),
+                Arc::clone(&self.peers),
+                self.common_information.clone(),
+                Arc::clone(&self.state),
+            )
+            .expect("Failed to create tracker connection");
 
-                    peer_list.push(Self {
-                        in_use: false,
-                        ipv6: ip.contains(':'),
-                        has: Bitfield::new(total_pieces),
-                        port: *port,
-                        ip,
-                    });
-                }
-            };
-        });
+            self.handlers.push(
+                tracker_connection.activate(server_handler.get_port(), server_handler.get_ip()),
+            );
 
-        peer_list
+            self.handlers.push(server_handler.activate());
+
+            log::info!("Established connection with tracker");
+
+            let peer_handler = PeerHandler::new(
+                Arc::clone(&self.have),
+                Arc::clone(&self.peers),
+                self.common_information.clone(),
+                Arc::clone(&self.state),
+            )
+            .expect("Failed to create peer handler");
+
+            self.handlers.push(peer_handler.activate());
+
+            for handler in self.handlers {
+                handler.join().expect("Failed tu join thread handler");
+            }
+
+            log::info!("Peer::activate(): All threads joined");
+        })
     }
 }

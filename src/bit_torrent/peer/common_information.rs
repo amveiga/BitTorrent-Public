@@ -2,7 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use sha1::{Digest, Sha1};
 
-use crate::{frontend::torrents::TorrentData, torrent_file::Torrent, utils::random_u64_as_bytes};
+use crate::{
+    frontend::{peers::PeersData, torrents::TorrentData},
+    torrent_file::Torrent,
+    utils::random_u64_as_bytes,
+};
 
 #[derive(Clone, Debug)]
 
@@ -15,14 +19,20 @@ pub struct CommonInformation {
     pub file_name: String,
     pub file_length: u64,
     pub torrent_pathname: String,
-    pub tx: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
+    pub tx_torrent: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
+    pub tx_peers: Arc<Mutex<gtk::glib::Sender<PeersData>>>,
+    pub temp_directory: String,
+    pub download_directory: String,
 }
 
 impl CommonInformation {
     pub fn new(
         torrent: &Torrent,
         torrent_pathname: &str,
-        tx: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
+        temp_directory: &str,
+        download_directory: &str,
+        tx_torrent: Arc<Mutex<gtk::glib::Sender<TorrentData>>>,
+        tx_peers: Arc<Mutex<gtk::glib::Sender<PeersData>>>,
     ) -> Self {
         let pieces = torrent
             .get_pieces()
@@ -57,7 +67,10 @@ impl CommonInformation {
             file_name,
             file_length,
             torrent_pathname: torrent_pathname.to_string(),
-            tx,
+            tx_torrent,
+            tx_peers,
+            temp_directory: temp_directory.to_string(),
+            download_directory: download_directory.to_string(),
         }
     }
 }

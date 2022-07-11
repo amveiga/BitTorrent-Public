@@ -37,6 +37,8 @@
 extern crate log;
 
 use std::{
+    env,
+    fs::create_dir_all,
     io::Write,
     sync::{
         mpsc::{self, Receiver, Sender},
@@ -108,18 +110,24 @@ impl Logger {
     }
 
     pub fn activate(
-        path: Option<String>,
+        file_name: Option<String>,
         max_level_filter: Option<LevelFilter>,
     ) -> Result<(), SetLoggerError> {
         let (tx, rx): (Sender<String>, Receiver<String>) = mpsc::channel();
 
         thread::spawn(move || {
-            match path {
-                Some(path) => {
-                    let mut file = std::fs::OpenOptions::new()
+            match file_name {
+                Some(file_name) => {
+                    let log_path = env::var("LOG_PATH").unwrap_or_else(|_| "".to_string());
+
+                    let path = log_path.as_str();
+
+                    create_dir_all(path).expect("log: failed to create log directory");
+
+                    let mut file = std::fs::File::options()
                         .write(true)
                         .create(true)
-                        .open(path)
+                        .open(format!("{}/{}", path, file_name))
                         .expect("log: failed to open log file");
                     for received in rx {
                         file.write_all(received.as_bytes())

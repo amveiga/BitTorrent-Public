@@ -1,9 +1,12 @@
+use super::MessageError;
 use std::io::Read;
 use std::net::TcpStream;
 
 #[derive(Debug)]
 
 pub enum Message {
+    Handshake(Vec<u8>, Vec<u8>),
+    HandshakeResponse(Vec<u8>, [u8; 20]),
     Unrecognized,
     KeepAlive,
     Interested,
@@ -42,6 +45,31 @@ impl Message {
                 Ok(false)
             }
             Err(_) => Err(String::from("Failed to read handshake from stream")),
+        }
+    }
+
+    pub fn read_handshake_from_stream(stream: &mut TcpStream) -> Result<Message, MessageError> {
+        let mut protocol_length_buffer = [0_u8; 1];
+
+        match stream.read_exact(&mut protocol_length_buffer) {
+            Ok(_) => {
+                let protocol_length = u8::from_be_bytes(protocol_length_buffer) as usize;
+
+                let data_length = (protocol_length + 48) as usize;
+
+                let mut data_buffer = vec![0_u8; data_length];
+
+                match stream.read_exact(&mut data_buffer) {
+                    Ok(_) => {
+                        let info_hash = data_buffer[data_length - 40..data_length - 20].to_vec();
+                        let peer_id = data_buffer[data_length - 20..data_length].to_vec();
+
+                        Ok(Message::Handshake(info_hash, peer_id))
+                    }
+                    Err(_) => Err(MessageError::InvalidHandshake),
+                }
+            }
+            Err(_) => Err(MessageError::FailedToReadMessage),
         }
     }
 
@@ -112,6 +140,29 @@ impl Message {
             Message::KeepAlive => Some(vec![0]),
             Message::Interested => Some(vec![0, 0, 0, 1, 2]),
             Message::Unrecognized => None,
+            Message::Unchoke => Some(vec![0, 0, 0, 1, 1]),
+            Message::Bitfield { payload } => {
+                let mut message = vec![];
+
+                let payload_length = payload.len();
+
+                message.extend_from_slice(&((payload_length + 1) as u32).to_be_bytes());
+                message.extend_from_slice(&(5_u8).to_be_bytes());
+                message.extend_from_slice(payload);
+
+                Some(message)
+            }
+            Message::Piece { payload } => {
+                let mut message = vec![];
+
+                let payload_length = payload.len();
+
+                message.extend_from_slice(&((payload_length + 1) as u32).to_be_bytes());
+                message.extend_from_slice(&(7_u8).to_be_bytes());
+                message.extend_from_slice(payload);
+
+                Some(message)
+            }
             Message::Request {
                 piece_index,
                 block_offset,
@@ -122,6 +173,20 @@ impl Message {
                 message.extend_from_slice(&piece_index.to_be_bytes());
                 message.extend_from_slice(&block_offset.to_be_bytes());
                 message.extend_from_slice(&block_length.to_be_bytes());
+
+                Some(message)
+            }
+            Message::HandshakeResponse(info_hash, peer_id) => {
+                let mut message = vec![];
+
+                let protocol = &b"BitTorrent protocol".to_vec();
+                let reserved = vec![0; 8];
+
+                message.extend_from_slice(&(protocol.len() as u8).to_be_bytes());
+                message.extend_from_slice(protocol);
+                message.extend_from_slice(&reserved);
+                message.extend_from_slice(info_hash);
+                message.extend_from_slice(peer_id);
 
                 Some(message)
             }
@@ -148,19 +213,19 @@ impl Message {
                             5 => Message::Bitfield { payload },
                             6 => {
                                 let piece_index = u32::from_be_bytes(
-                                    data[0..4]
+                                    data[5..9]
                                         .try_into()
                                         .expect("Malformed request message: missing piece index"),
                                 );
 
                                 let block_offset = u32::from_be_bytes(
-                                    data[4..8]
+                                    data[9..13]
                                         .try_into()
                                         .expect("Malformed request message: missing block offset"),
                                 );
 
                                 let block_length = u32::from_be_bytes(
-                                    data[8..12]
+                                    data[13..17]
                                         .try_into()
                                         .expect("Malformed request message: missing block length"),
                                 );
@@ -178,20 +243,5 @@ impl Message {
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test1_interested_parse() {
-        let interesetd = Message::Interested
-            .parse()
-            .expect("test_interested_parse - Failed to parse interested");
-        let expected = vec![0, 0, 0, 1, 2];
-
-        assert_eq!(interesetd, expected);
     }
 }

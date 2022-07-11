@@ -1,12 +1,6 @@
-#![allow(unused_variables)]
-
-pub use super::{Job, Protocol};
-use native_tls::TlsConnector;
+pub use super::Protocol;
 use std::collections::HashMap;
-use std::convert::AsRef;
-use std::io::prelude::{Read, Write};
 use std::net::TcpStream;
-use std::sync::{Arc, Mutex};
 
 pub struct HTTPTracker {
     peers: Vec<usize>,
@@ -87,43 +81,9 @@ impl Protocol for HTTPTracker {
     type Stream = TcpStream;
 
     fn connect(target_address: &str) -> Result<TcpStream, String> {
-        let connector = TlsConnector::new().expect("Failed to creat TlsConnector");
-        let split: Vec<&str> = target_address.split(':').collect();
-
         match TcpStream::connect(target_address) {
             Ok(stream) => Ok(stream),
             Err(_) => Err(format!("Failed to connect to {}", target_address)),
         }
-    }
-
-    fn handle_incoming(self, mut stream: TcpStream) -> Job {
-        let mut buffer = [0; 1024];
-
-        stream
-            .read_exact(&mut buffer)
-            .expect("Failed to read from stream");
-
-        let self_pointer = Arc::new(Mutex::new(self));
-
-        Box::new(move || {
-            let string_request = String::from_utf8_lossy(&buffer).to_string();
-
-            let request_body: Vec<&str> = string_request.split("\r\n").collect();
-
-            let method = request_body
-                .get(0)
-                .expect("Failed to get method from request body");
-            let url_query = request_body
-                .get(1)
-                .expect("Failed to get url_query from request body");
-        })
-    }
-
-    fn handle_request<R: AsRef<[u8]>>(&self, request: R, mut stream: TcpStream) -> Job {
-        let bytes = request.as_ref().to_owned();
-
-        Box::new(move || {
-            stream.write_all(&bytes).expect("Failed to write in stream");
-        })
     }
 }

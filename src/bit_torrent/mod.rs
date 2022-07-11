@@ -1,7 +1,7 @@
 pub use super::*;
 pub use super::{
     bencoder::{common::Types, Decoder},
-    file_system::{File, Fragment},
+    file_system::File,
     frontend::views::torrents::TorrentData,
     networking::{
         BitTorrent as BTProtocol, HTTPSTracker, HTTPTracker, InterfaceProtocol, Message,
@@ -14,13 +14,13 @@ pub use super::{
 pub use bitfield::Bitfield;
 pub use constants::*;
 pub use index::BitTorrent;
-pub use leecher::{CommonInformation, Leecher, PeerList};
-pub use peer::Peer;
+pub use peer::{CommonInformation, Peer, PeerConnection, PeerList, State};
+pub use peer_record::PeerRecord;
 pub use piece::Piece;
 
 mod bitfield;
 mod constants;
 mod index;
-mod leecher;
 mod peer;
+mod peer_record;
 mod piece;

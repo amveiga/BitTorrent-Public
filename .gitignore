@@ -11,4 +11,6 @@
 /target
 .DS_Store
 /*.log
-/download_temp
+/temp
+/downloads
+/logs/*

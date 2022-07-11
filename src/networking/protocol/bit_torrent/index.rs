@@ -1,8 +1,4 @@
-#![allow(unused_mut)]
-#![allow(unused_variables)]
-
-use super::{Job, Protocol};
-use std::convert::AsRef;
+use super::Protocol;
 use std::net::TcpStream;
 
 pub struct BitTorrent;
@@ -39,6 +35,7 @@ impl Protocol for BitTorrent {
             "BitTorrent::connect() - Trying to connect to {}",
             target_address
         );
+
         match TcpStream::connect(target_address) {
             Ok(stream) => {
                 log::info!(
@@ -57,13 +54,5 @@ impl Protocol for BitTorrent {
                 Err(format!("Failed to connect to {}", target_address))
             }
         }
-    }
-
-    fn handle_request<R: AsRef<[u8]>>(&self, _request: R, _stream: TcpStream) -> Job {
-        Box::new(move || {})
-    }
-
-    fn handle_incoming(self, mut stream: TcpStream) -> Job {
-        Box::new(move || {})
     }
 }
