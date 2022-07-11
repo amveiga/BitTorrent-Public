@@ -78,7 +78,9 @@ impl PeerConnection {
 
                     match current_state {
                         State::UnknownToPeer => match peer_connection.greet() {
-                            Ok(new_state) => peer_connection.state = new_state,
+                            Ok(new_state) => {
+                                peer_connection.state = new_state;
+                            }
                             _ => peer_connection.state = State::Useless(false),
                         },
                         State::ProcessingHandshakeResponse => {
@@ -169,30 +171,38 @@ impl PeerConnection {
                         continue;
                     }
                 }
-                Ok(Message::Bitfield { payload }) => match state {
-                    State::Downloading => {
-                        self.peer.has =
-                            Bitfield::new_from_vec(payload, self.common_information.total_pieces);
-                    }
-                    State::Useless(unchoked) => {
-                        self.peer.has =
-                            Bitfield::new_from_vec(payload, self.common_information.total_pieces);
-
-                        match unchoked {
-                            true => {
-                                state = State::Downloading;
-                            }
-                            false => state = State::Choked,
+                Ok(Message::Bitfield { payload }) => {
+                    match state {
+                        State::Downloading => {
+                            self.peer.has = Bitfield::new_from_vec(
+                                payload,
+                                self.common_information.total_pieces,
+                            );
                         }
-                    }
-                    State::Choked => {
-                        self.peer.has =
-                            Bitfield::new_from_vec(payload, self.common_information.total_pieces);
-                    }
-                    _ => {}
-                },
+                        State::Useless(unchoked) => {
+                            self.peer.has = Bitfield::new_from_vec(
+                                payload,
+                                self.common_information.total_pieces,
+                            );
+
+                            match unchoked {
+                                true => {
+                                    state = State::Downloading;
+                                }
+                                false => state = State::Choked,
+                            }
+                        }
+                        State::Choked => {
+                            self.peer.has = Bitfield::new_from_vec(
+                                payload,
+                                self.common_information.total_pieces,
+                            );
+                        }
+                        _ => {}
+                    };
+                }
                 Ok(Message::Unchoke) => match state {
-                    State::Useless(_unchoked) => state = State::Useless(true),
+                    State::Useless(_) => state = State::Useless(true),
                     State::Choked => {
                         state = State::Downloading;
                     }

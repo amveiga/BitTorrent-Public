@@ -4,7 +4,7 @@ use std::env;
 use std::fs::{self, remove_dir_all, remove_file, File as Handler};
 
 use std::convert::AsRef;
-use std::io::{Error, Read, Write};
+use std::io::{Error, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 pub struct File {
@@ -67,24 +67,19 @@ impl File {
         block_size: usize,
         block_offset: usize,
     ) -> Vec<u8> {
-        let handler = File::open_file(&self.pathname).expect("Error opening file");
-
-        let file_as_bytes = handler.bytes();
-
-        let mut bytes: Vec<u8> = Vec::new();
-
         let first_byte = piece_index * piece_size + block_offset;
         let last_byte = first_byte + block_size;
 
-        for (byte_number, byte) in file_as_bytes.enumerate() {
-            if let Ok(byte_value) = byte {
-                if byte_number >= first_byte && byte_number < last_byte {
-                    bytes.push(byte_value)
-                }
-            }
-        }
+        self.handler
+            .seek(SeekFrom::Start(first_byte as u64))
+            .expect("Failed to seek");
 
-        bytes
+        let mut buf = vec![0; last_byte - first_byte];
+        self.handler
+            .read_exact(&mut buf)
+            .expect("Failed to read bytes");
+
+        buf
     }
 
     pub fn new_file_from_piece<T: AsRef<Path>>(piece: &[u8], pathname: T) -> Result<Self, Error> {

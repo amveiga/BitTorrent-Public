@@ -61,7 +61,7 @@ impl ServerHandler {
             return Ok(Self {
                 socket,
                 peer_state,
-                ip: String::from("127.0.0.1"),
+                ip: ServerHandler::get_clients_ip().expect("Failed to get global ip"),
                 port,
                 bitfield,
                 common_information,

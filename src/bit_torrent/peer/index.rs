@@ -44,7 +44,7 @@ impl Peer {
         Self {
             state: Arc::new(Mutex::new(PeerState::NoPieces(format!(
                 "{}/{}",
-                download_directory, common_information.file_name
+                temp_directory, common_information.file_name
             )))),
             common_information,
             have,

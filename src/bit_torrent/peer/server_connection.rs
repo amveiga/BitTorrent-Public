@@ -96,10 +96,14 @@ impl ServerConnection {
                             pathname, self.common_information.file_name, piece_index
                         ));
 
-                        Some(file.get_contents())
+                        Some(file.get_block(
+                            0,
+                            self.common_information.piece_length,
+                            block_length as usize,
+                            block_offset as usize,
+                        ))
                     }
                     PeerState::AllPieces(pathname) => {
-                        println!("path {}", pathname);
                         let mut file = File::new(pathname);
 
                         Some(file.get_block(

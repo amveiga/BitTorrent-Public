@@ -237,7 +237,6 @@ fn add_columns_peers(_model: &Rc<gtk::ListStore>, treeview: &gtk::TreeView) {
     }
 }
 
-// TODO
 fn insert_peers_row(list: &Rc<ListStore>, data: &PeersData) {
     let values: [(u32, &dyn ToValue); 6] = [
         (0, &data.ip),

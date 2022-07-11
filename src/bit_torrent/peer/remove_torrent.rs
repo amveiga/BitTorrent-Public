@@ -13,9 +13,14 @@ impl RemoveTorrent {
         remove_rx: Receiver<String>,
         state: Arc<Mutex<PeerState>>,
     ) -> JoinHandle<()> {
-        thread::spawn(move || {
-            for recived in remove_rx {
-                if recived == "End" {
+        thread::spawn(move || loop {
+            if let PeerState::Broken = &*state.lock().unwrap() {
+                break;
+            }
+
+            let maybe_recv = remove_rx.try_recv();
+            if let Ok(recv) = maybe_recv {
+                if recv == "End" {
                     log::info!(
                         "RemoveTorrent::wait_signal(): Removing torrent {}",
                         pathname
@@ -24,6 +29,8 @@ impl RemoveTorrent {
                     break;
                 }
             }
+
+            thread::yield_now();
         })
     }
 }
