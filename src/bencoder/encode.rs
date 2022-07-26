@@ -37,7 +37,7 @@ impl Encoder {
     fn encode_list(&self, list: &LinkedList<Types>) -> Result<Vec<u8>, Box<dyn error::Error>> {
         let mut encoded_list: Vec<u8> = vec![b'l'];
         for item in list {
-            self.match_encode(item)?;
+            encoded_list.extend_from_slice(&self.match_encode(item)?);
         }
         encoded_list.push(b'e');
         Ok(encoded_list)
@@ -50,9 +50,10 @@ impl Encoder {
         let mut encoded_dict: Vec<u8> = vec![b'd'];
         for (key, val) in dict {
             encoded_dict.extend_from_slice(&self.encode_string(key)?);
-            self.match_encode(val)?;
+            encoded_dict.extend_from_slice(&self.match_encode(val)?);
         }
         encoded_dict.push(b'e');
+
         Ok(encoded_dict)
     }
 }

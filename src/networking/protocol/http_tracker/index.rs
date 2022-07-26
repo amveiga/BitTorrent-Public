@@ -1,4 +1,4 @@
-pub use super::Protocol;
+pub use super::{Handshake, Protocol};
 use std::collections::HashMap;
 use std::net::TcpStream;
 
@@ -30,28 +30,24 @@ impl HTTPTracker {
         }
     }
 
-    pub fn format_handshake_message(
-        &self,
-        address: &str,
-        id: String,
-        info_hash: String,
-        port: u16,
-        left: u64,
-        downloaded: u64,
-    ) -> String {
+    pub fn format_handshake_message(&self, handshake_params: Handshake) -> String {
         format!(
-            "GET /{}?peer_id={}&numwant=100&info_hash={}&port={}&uploaded=0&downloaded={}&left={}&event=started HTTP/1.0\r\nHost: {}\r\n\r\n",
-            self.announce,id, info_hash, port, downloaded,left, address
+            "GET /{}?peer_id={}&numwant=100&info_hash={}&port={}&uploaded=0&downloaded={}&left={}&event={} HTTP/1.0\r\nHost: {}\r\n\r\n",
+            self.announce,
+            handshake_params.id,
+            handshake_params.info_hash,
+            handshake_params.port,
+            handshake_params.downloaded,
+            handshake_params.left,
+            handshake_params.event,
+            handshake_params.address
         )
     }
 
     pub fn query_to_hashmap(query: &str) -> HashMap<String, String> {
         let mut map: HashMap<String, String> = HashMap::new();
 
-        let query_params: Vec<&str> = query.split('?').collect();
-        let query_params = query_params[1];
-
-        query_params.split('&').into_iter().for_each(|key_value| {
+        query.split('&').into_iter().for_each(|key_value| {
             let key_value_split: Vec<&str> = key_value.split('=').collect();
 
             let key = key_value_split[0];

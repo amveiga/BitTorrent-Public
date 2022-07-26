@@ -14,7 +14,3 @@ pub struct Peer {
   state: Arc<Mutex<PeerState>>,
   handlers: Vec<thread::JoinHandle<()>>,
 }
-
-pub struct StatusHandler {
-  rx
-}

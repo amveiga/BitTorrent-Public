@@ -13,14 +13,18 @@ pub use super::{
 };
 pub use bitfield::Bitfield;
 pub use constants::*;
+pub use handshake::Handshake;
 pub use index::BitTorrent;
 pub use peer::{CommonInformation, Peer, PeerConnection, PeerList, State};
 pub use peer_record::PeerRecord;
 pub use piece::Piece;
+pub use tracker::Tracker;
 
 mod bitfield;
 mod constants;
+pub mod handshake;
 mod index;
 mod peer;
 mod peer_record;
 mod piece;
+mod tracker;

@@ -1,7 +1,7 @@
 use crate::frontend::torrents::TorrentData;
 
 use super::{
-    utils::split_u8, Bitfield, CommonInformation, Decoder, InterfaceProtocolHandler,
+    utils::split_u8, Bitfield, CommonInformation, Decoder, Handshake, InterfaceProtocolHandler,
     NetworkingError, PeerList, PeerRecord, PeerState, Types, UrlEncoder,
 };
 use std::thread::{self};
@@ -17,6 +17,7 @@ pub struct TrackerConnection {
     tracker_address: String,
     sleep: u64,
     state: Arc<Mutex<PeerState>>,
+    announce: String,
 }
 
 impl TrackerConnection {
@@ -27,9 +28,10 @@ impl TrackerConnection {
         common_information: CommonInformation,
         state: Arc<Mutex<PeerState>>,
     ) -> Result<Self, NetworkingError> {
-        let (client, tracker_address) = InterfaceProtocolHandler::new(announce)?;
+        let (client, tracker_address) = InterfaceProtocolHandler::new(announce.clone())?;
 
         Ok(Self {
+            announce,
             state,
             client,
             bitfield,
@@ -60,15 +62,15 @@ impl TrackerConnection {
 
                 drop(bitfield_guard);
 
-                let request = self.client.format_handshake_message(
-                    &self.tracker_address,
-                    UrlEncoder::encode_binary_data(self.common_information.peer_id.as_ref()),
-                    UrlEncoder::encode_binary_data(&self.common_information.info_hash),
-                    listening_port,
+                let request = self.client.format_handshake_message(Handshake {
+                    address: self.tracker_address.to_string(),
+                    id: UrlEncoder::encode_binary_data(self.common_information.peer_id.as_ref()),
+                    info_hash: UrlEncoder::encode_binary_data(&self.common_information.info_hash),
+                    port: listening_port,
                     left,
                     downloaded,
-                );
-
+                    event: String::from(if left == 0 { "completed" } else { "started" }),
+                });
                 let response = if let Err(error) = self.client.send(request) {
                     Err(error)
                 } else {
@@ -76,46 +78,52 @@ impl TrackerConnection {
                 };
 
                 if let Ok(response) = response {
-                    let slice = split_u8(response, b"\r\n\r\n");
+                    if !response.is_empty() {
+                        let slice = split_u8(response, b"\r\n\r\n");
 
-                    if let Ok(Types::Dictionary(dict)) = Decoder::new_from_bytes(&slice).decode() {
-                        let peers = dict
-                            .get(&b"peers".to_vec())
-                            .expect("Failed to parse peers from tracker response");
+                        if let Ok(Types::Dictionary(dict)) =
+                            Decoder::new_from_bytes(&slice).decode()
+                        {
+                            let peers = dict
+                                .get(&b"peers".to_vec())
+                                .expect("Failed to parse peers from tracker response");
 
-                        let sleep = dict
-                            .get(&b"interval".to_vec())
-                            .expect("Failed to get interval from tracker response")
-                            .get_integrer()
-                            .expect("Failed to parse interval from tracker response");
+                            let sleep = dict
+                                .get(&b"interval".to_vec())
+                                .expect("Failed to get interval from tracker response")
+                                .get_integrer()
+                                .expect("Failed to parse interval from tracker response");
 
-                        self.sleep = sleep as u64;
+                            self.sleep = sleep as u64;
 
-                        if let Types::List(list) = peers {
-                            log::debug!(
+                            if let Types::List(list) = peers {
+                                log::debug!(
                                 "TrackerConnection::activate() - trying to obtain PeerList lock"
                             );
-                            log::debug!("TrackerConnection::activate() - PeerList lock obtained");
+                                log::debug!(
+                                    "TrackerConnection::activate() - PeerList lock obtained"
+                                );
 
-                            let peers = PeerRecord::new_from_list(
-                                list,
-                                self.common_information.total_pieces,
-                            );
+                                let peers = PeerRecord::new_from_list(
+                                    list,
+                                    self.common_information.total_pieces,
+                                );
 
-                            peers_guard.update(peers);
+                                peers_guard.update(peers);
 
-                            peers_guard.remove(&listening_ip, listening_port as i64);
+                                peers_guard.remove(&listening_ip, listening_port as i64);
 
-                            let bitfield_guard = self.bitfield.lock().unwrap();
-                            retries = 3;
-                            TorrentData::refresh(
-                                &self.common_information,
-                                &peers_guard,
-                                &bitfield_guard,
-                            );
+                                let bitfield_guard = self.bitfield.lock().unwrap();
+                                retries = 3;
+                                TorrentData::refresh(
+                                    &self.common_information,
+                                    &peers_guard,
+                                    &bitfield_guard,
+                                );
+                            }
+                        } else {
+                            retries -= 1;
                         }
-                    } else {
-                        retries -= 1;
                     }
                 } else {
                     retries -= 1;
@@ -131,6 +139,10 @@ impl TrackerConnection {
                     }
 
                     if last_call.elapsed().as_secs() >= self.sleep {
+                        let (client, _) =
+                            InterfaceProtocolHandler::new(self.announce.clone()).unwrap();
+                        self.client = client;
+
                         break;
                     }
 

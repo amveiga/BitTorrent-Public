@@ -1,3 +1,4 @@
+pub use super::Handshake;
 pub use bit_torrent::*;
 pub use http_tracker::HTTPTracker;
 pub use https_tracker::HTTPSTracker;

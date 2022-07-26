@@ -1,4 +1,4 @@
-pub use super::Protocol;
+pub use super::{Handshake, Protocol};
 use native_tls::{TlsConnector, TlsStream};
 use std::collections::HashMap;
 use std::net::TcpStream;
@@ -31,18 +31,17 @@ impl HTTPSTracker {
         }
     }
 
-    pub fn format_handshake_message(
-        &self,
-        address: &str,
-        id: String,
-        info_hash: String,
-        port: u16,
-        left: u64,
-        downloaded: u64,
-    ) -> String {
+    pub fn format_handshake_message(&self, handshake_params: Handshake) -> String {
         format!(
-            "GET /{}?peer_id={}&numwant=100&info_hash={}&port={}&uploaded=0&downloaded={}&left={}&event=started HTTP/1.0\r\nHost: {}\r\n\r\n",
-            self.announce,id, info_hash, port, downloaded, left, address
+            "GET /{}?peer_id={}&numwant=100&info_hash={}&port={}&uploaded=0&downloaded={}&left={}&event={} HTTP/1.0\r\nHost: {}\r\n\r\n",
+            self.announce,
+            handshake_params.id,
+            handshake_params.info_hash,
+            handshake_params.port,
+            handshake_params.downloaded,
+            handshake_params.left,
+            handshake_params.event,
+            handshake_params.address
         )
     }
 

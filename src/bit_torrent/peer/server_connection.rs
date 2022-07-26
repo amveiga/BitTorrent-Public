@@ -70,7 +70,6 @@ impl ServerConnection {
                     }
                 }
                 UploadState::Useless => {
-                    *connection.peer_state.lock().unwrap() = PeerState::Broken;
                     break;
                 }
             }

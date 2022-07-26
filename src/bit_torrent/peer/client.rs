@@ -1,4 +1,4 @@
-use super::{HTTPSTracker, HTTPTracker, InterfaceProtocol, NetworkingError, Protocol};
+use super::{HTTPSTracker, HTTPTracker, Handshake, InterfaceProtocol, NetworkingError, Protocol};
 
 pub enum InterfaceProtocolHandler {
     Http(
@@ -60,22 +60,14 @@ impl InterfaceProtocolHandler {
         }
     }
 
-    pub fn format_handshake_message(
-        &self,
-        address: &str,
-        id: String,
-        info_hash: String,
-        port: u16,
-        left: u64,
-        downloaded: u64,
-    ) -> String {
+    pub fn format_handshake_message(&self, handshake_params: Handshake) -> String {
         match self {
             Self::Http(ref client, _) => client
                 .get_protocol()
-                .format_handshake_message(address, id, info_hash, port, left, downloaded),
+                .format_handshake_message(handshake_params),
             Self::Https(ref client, _) => client
                 .get_protocol()
-                .format_handshake_message(address, id, info_hash, port, left, downloaded),
+                .format_handshake_message(handshake_params),
         }
     }
 }

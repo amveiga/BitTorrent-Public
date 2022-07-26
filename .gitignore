@@ -14,3 +14,29 @@
 /temp
 /downloads
 /logs/*
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/torrentsito/node_modules
+/torrentsito/.pnp
+/torrentsito/pnp.js
+
+# testing
+/torrentsito/coverage
+
+# production
+/torrentsito/build
+
+# misc
+/torrentsito/DS_Store
+/torrentsito/env.local
+/torrentsito/env.development.local
+/torrentsito/env.test.local
+/torrentsito/env.production.local
+
+/torrentsito/npm-debug.log*
+/torrentsito/yarn-debug.log*
+/torrentsito/yarn-error.log*
+/torrentsito/yarn.lock
+
